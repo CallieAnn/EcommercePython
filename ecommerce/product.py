@@ -1,9 +1,19 @@
+import os;
 import functools
 
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+
+import stripe;
+
+stripe_keys = {
+  'secret_key': os.environ['SECRET_KEY'],
+  'publishable_key': os.environ['PUBLISHABLE_KEY']
+}
+
+stripe.api_key = stripe_keys['secret_key']
 
 
 bp = Blueprint('product', __name__)
@@ -51,3 +61,28 @@ def products():
 @bp.route('/about')
 def about():
     return render_template('product/about.html')
+
+
+@bp.route('/checkout')
+def checkout():
+    return render_template('product/checkout.html', key=stripe_keys['publishable_key'])
+
+
+@bp.route('/charge', methods=['POST'])
+def charge():
+    # Amount in cents
+    amount = 10000
+
+    customer = stripe.Customer.create(
+        email='customer@example.com',
+        source=request.form['stripeToken']
+    )
+
+    charge = stripe.Charge.create(
+        customer=customer.id,
+        amount=amount,
+        currency='usd',
+        description='Flask Charge'
+    )
+
+    return render_template('product/charge.html', amount=amount)
